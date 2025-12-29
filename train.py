@@ -83,6 +83,7 @@ def train(model, dataloader, optimizer, scheduler, criterion, device, writer, co
       global_step = epoch * len(dataloader) + step
       # 总loss
       writer.add_scalar('Train/Step Loss', batch_loss.item(), global_step)
+      writer.flush()
       # 各模块原始loss
       for module in dataset_module_names:
           if module_sample_count[module] > 0:
@@ -90,9 +91,11 @@ def train(model, dataloader, optimizer, scheduler, criterion, device, writer, co
               writer.add_scalar(f'Train/Step_{module}_Raw_Loss', avg_raw, global_step)
               avg_weighted = module_weighted_loss[module] / module_sample_count[module]
               writer.add_scalar(f'Train/Step_{module}_Weighted_Loss', avg_weighted, global_step)
+      writer.flush()
       # 学习率
       lr = scheduler.get_last_lr()[0]
       writer.add_scalar('Train/Learning Rate', lr, global_step)
+      writer.flush()
       # 中间日志
       if step % 20 == 0:
         print(
@@ -104,6 +107,7 @@ def train(model, dataloader, optimizer, scheduler, criterion, device, writer, co
     # Epoch级日志（解耦可视化）
     avg_total_loss = total_loss / len(dataloader)
     writer.add_scalar('Train/Epoch_Avg_Total_Loss', avg_total_loss, epoch)
+    writer.flush()
     # 各模块Epoch级原始/加权loss
     for module in dataset_module_names:
         if module_sample_count[module] > 0:
@@ -112,7 +116,7 @@ def train(model, dataloader, optimizer, scheduler, criterion, device, writer, co
             writer.add_scalar(f'Train/Epoch_{module}_Raw_Loss', epoch_avg_raw, epoch)
             writer.add_scalar(f'Train/Epoch_{module}_Weighted_Loss', epoch_avg_weighted, epoch)
             print(f"  - {module}: Raw Loss={epoch_avg_raw:.6f}, Weighted Loss={epoch_avg_weighted:.6f}")
-
+    writer.flush()
     print(f"==== Epoch {epoch+1} Avg Loss: {avg_total_loss:.6f} ====")  
   writer.close()
 
@@ -201,17 +205,25 @@ if __name__ == "__main__":
   )
 
   criterion = nn.MSELoss()
-
-  train(
-    model=decoderModel,
-    dataloader=dataloader,
-    optimizer=optimizer,
-    scheduler=scheduler,
-    criterion=criterion,
-    device=device,
-    writer=writer, # tensorboard
-    config=config.training
-  )
+  
+  try:
+    train(
+      model=decoderModel,
+      dataloader=dataloader,
+      optimizer=optimizer,
+      scheduler=scheduler,
+      criterion=criterion,
+      device=device,
+      writer=writer, # tensorboard
+      config=config.training
+    )
+  except KeyboardInterrupt:
+    print("\n训练被手动中断，正在保存日志...")
+    writer.flush()  # 最后一次强制刷新
+    writer.close()  # 关闭writer
+  finally:
+    if 'writer' in locals():
+        writer.close()
 
   torch.save(decoderModel.state_dict(), config.save_path)
   print(f"Model saved to {config.save_path}")
