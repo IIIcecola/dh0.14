@@ -9,7 +9,7 @@ wav2vec2:
 dataset:
   cache_path: "./Dataset"
   datasets_list:
-    - {file_name: zhuboshuolianbo, sample_mode: all, num_samples: 10, sample_weight: 1, loss_weight: 0.2}
+    - {file_name: zhuboshuolianbo, sample_mode: all, num_sample: 10, sample_weight: 1, loss_weight: 0.2}
     # - 'shanzhonglengyuewei'
   seconds: 5
   load_flag: True
